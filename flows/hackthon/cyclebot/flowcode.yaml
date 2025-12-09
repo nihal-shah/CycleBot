@@ -1,0 +1,42 @@
+id: cyclebot-bug-handler
+namespace: hackathon.cyclebot
+description: "Triggers when a GitHub issue is labeled 'bug'"
+
+inputs:
+  - id: payload
+    type: JSON
+    description: "The raw GitHub webhook payload"
+
+triggers:
+  - id: github-webhook
+    type: io.kestra.plugin.core.trigger.Webhook
+    key: cycle_bot_developement 
+    conditions:
+      # Condition 1: Check if the event is an "issue" event
+      - type: io.kestra.plugin.core.condition.Expression
+        expression: "{{ trigger.body.issue is defined }}"
+      
+      # Condition 2: Check if the action was "labeled" or "opened"
+      - type: io.kestra.plugin.core.condition.Expression
+        expression: "{{ trigger.body.action == 'labeled' or trigger.body.action == 'opened' }}"
+      
+      # Condition 3: STRICTLY check if the label is 'bug'
+      - type: io.kestra.plugin.core.condition.Expression
+        expression: "{{ (trigger.body.label is defined and trigger.body.label.name == 'bug') or (trigger.body.issue.labels is defined and (trigger.body.issue.labels.name =='bug')) }}"
+
+tasks:
+  - id: log-new-bug
+    type: io.kestra.plugin.core.log.Log
+    message: |
+      ---NEW BUG DETECTED!---
+      Title: {{ trigger.body.issue.title }}
+      User: {{ trigger.body.issue.user.login }}
+      URL: {{ trigger.body.issue.html_url }}
+      
+  - id: extract-issue-details
+    type: io.kestra.plugin.core.debug.Return
+    format: |
+      {
+        "issue_number": "{{ trigger.body.issue.number }}",
+        "repo_full_name": "{{ trigger.body.repository.full_name }}"
+      }
